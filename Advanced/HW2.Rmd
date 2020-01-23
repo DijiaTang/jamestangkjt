@@ -1,0 +1,272 @@
+---
+title: "HW2"
+author: "Dijia Tang"
+date: "11/23/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load packages
+```{r}
+library(tidyverse)
+library(lmtest)
+library(sandwich)
+```
+
+
+## The Data
+
+The data that we are using is available in the "data" folder and is called: teamPerc.RData.
+```{r}
+leader <- miceadds::load.Rdata2('teamPerc.RData')
+colnames(leader)
+```
+
+## What Makes An Effective Leader?
+
+Why are some people seen as effective leaders and others are not? Are there any behaviors or characteristics that can help us quantify what an effective leader looks like? 
+
+The data that we are using comes from a large survey of employees and their direct manager (i.e., each leader provided self-ratings and their direct subordinates provided rating about the leader -- this is reflected by the `Rater` variable). We are most interested in subordinate ratings. This data contains individual items and the scale score for those items. The scale are hierarchical and are constructed as follows:
+
+The *forceful* scale contains the following subscales: takesCharge, declares, pushes
+
+The *enabling* scale contains the following subscales: empowers, listens, supports
+
+The *strategic* scale contains the following subscales: direction, growth, innovation
+
+The *operational* scale contains the following subscales: execution, efficiency, order
+
+There are also a number of demographic variables within this data (e.g., age, experience, gender, tenure). 
+
+The main goal is explain the *effect* variable. You can use individual items, scale subscores, and/or scale scores. 
+```{r}
+forceful <- leader %>% 
+  select(takesCharge, declares, pushes)
+enabling <- leader %>% 
+  select(empowers, listens, supports)
+strategic <- leader %>% 
+  select(direction, growth, innovation)
+operational <- leader %>% 
+  select(execution, efficiency, order)
+explanation <- cbind(forceful,enabling,strategic,operational)
+demographics <- leader %>% 
+  select(effect,Gender,leader_age,leader_experience,leader_tenure)
+linModdata <- cbind(explanation,demographics)
+linMod <- lm(effect~. ,data = linModdata)
+summary(linMod)
+```
+
+### Bronze
+
+After examining the variables within the given data, generate at least 3 testable hypotheses; these should be generated before any visual exploration. 
+
+
+1. Ha: Seen from scale subscores, declares is significant to explain effect.
+   H0: Seen from scale subscores, declares is not significant to explain effect.
+   
+2. Ha: Seen from scale scores, strategic is significant to explain effect.
+   H0: Seen from scale scores, strategic is not significant to explain effect
+
+3. Ha: Amongst selecte demographic predictors, leader_age is significant to explain effect.
+   H0: Amongst selecte demographic predictors, leader_age is not significant to explain effect.
+
+Conduct an *a prior* power analysis and determine the sample size needed for the effect size you would expect to achieve -- be conservative in your estimates. Without previous knowledge or research, you will have to think before just picking a number here. Remember that you will need to use the $f^2$ value and it can calculated as:
+
+$$f^2 = \frac{R^2_{adjusted}}{1 - R^2_{adjusted}}$$
+
+After conducting your power analysis, use linear regression to test your hypotheses and produce appropriate visualizations.
+
+```{r}
+library(pwr)
+pwr::cohen.ES("f2", "medium")
+f2_01 =  0.2/(1+0.2)
+pwr.f2.test(u = 11, v = NULL, f2 = f2_01, power = .8)
+f2_02 =  0.15/(1+0.15)
+pwr.f2.test(u = 3, v = NULL, f2 = f2_02, power = .8)
+f2_03 =  0.01/(1+0.01)
+pwr.f2.test(u = 3, v = NULL, f2 = f2_03, power = .8)
+```
+```{r}
+H01 <- lm(effect~takesCharge+declares+pushes+
+                     empowers+listens+supports+
+                     direction+growth+innovation+
+                     execution+efficiency+order,data=linModdata)
+enabling_exp <- lm(effect~empowers+listens+supports,data=linModdata)
+strategic_exp <- lm(effect~direction+growth+innovation,data=linModdata)
+operational_exp <- lm(effect~execution+efficiency+order,data=linModdata)
+summary(H01)
+
+H02 <- lm(effect~forceful+enabling+strategic+operational, data=leader)
+summary(H02)
+
+demo_exp<- lm(effect~leader_age+Gender+leader_experience+leader_tenure,data=linModdata)
+summary(demo_exp)
+```
+
+Discuss the results of your model, both in terms of the model performance and your hypotheses. 
+
+**Discussion:** Based on the results of the power analysis, we can find the necessary sample size for us to test our hypotheses should be at least 1102, which is much smaller than what we have in the dataset. We can be confident in the power of our models.
+
+In the first model, we can see that not declares has a p-value way larger than the 0.05 alpha. That means we would fail to reject the null hypothesis.
+
+In the second model, we can see that strategic has a p-value smaller than alpha, so we should reject the null hypothesis.
+
+In the third model, we can see that leader_age's p-value indicates it is a significant predictor for effect, so we should reject the null hypothesis.
+
+Visualizations:
+```{r}
+leader %>% 
+  ggplot(aes(x=leader_age,y=effect))+
+  geom_point()+
+  geom_smooth(method = 'lm',se=F)
+
+leader %>% 
+  ggplot(aes(x=declares,y=effect))+
+  geom_point()+
+  geom_smooth(method = 'lm',se=F)
+
+leader %>% 
+  ggplot(aes(x=strategic,y=effect))+
+  geom_point()+
+  geom_smooth(method = 'lm',se=F)
+
+leader %>% 
+  ggplot(aes(x=forceful,y=effect))+
+  geom_point()+
+  geom_smooth(method = 'lm',se=F)
+
+leader %>% 
+  ggplot(aes(x=enabling,y=effect))+
+  geom_point()+
+  geom_smooth(method = 'lm',se=F)
+
+leader %>% 
+  ggplot(aes(x=operational,y=effect))+
+  geom_point()+
+  geom_smooth(method = 'lm',se=F)
+```
+
+### Silver
+
+Conduct any form of resampling and discuss the output from your resampled results. How does the resultant distribution help to support your hypotheses?
+```{r}
+modelVars <- dplyr::select(leader, effect, strategic, declares)
+slim <- lm(effect~strategic + declares, data=leader)
+bootstrapping <- function(df) {
+  df <- df
+  
+  sampledRows <- sample(1:nrow(df), nrow(df), replace = TRUE)
+  
+  df <- df[sampledRows, ]
+  
+  bsMod <- lm(effect ~ strategic+declares, data = df)
+  
+  results <- broom::tidy(bsMod)
+  
+  return(results)
+}
+
+bootstrapping(modelVars)
+
+bsRep <- replicate(1000, bootstrapping(modelVars), simplify = FALSE)
+
+bsCombined <- do.call("rbind", bsRep)
+
+hist(bsCombined$statistic[bsCombined$term == "strategic"], col = "black")
+
+abline(v = summary(slim)$coefficients["strategic","t value"], col = "cornflowerBlue", lwd = 2)
+```
+
+```{r}
+meanEffect <- mean(bsCombined$statistic[bsCombined$term == "strategic"])
+
+ciUpper <- quantile(bsCombined$statistic[bsCombined$term == "strategic"], .975)
+
+ciLower <- quantile(bsCombined$statistic[bsCombined$term == "strategic"], .025)
+
+hist(bsCombined$statistic[bsCombined$term == "strategic"], col = "slategray1")
+
+abline(v = summary(slim)$coefficients["strategic","t value"], col = "goldenrod4", lwd = 2)
+
+abline(v = ciUpper, col = "sienna3", lwd = 2)
+
+abline(v = ciLower, col = "sienna3", lwd = 2)
+
+abline(v = meanEffect, col = "sienna3", lwd = 2)
+```
+```{r}
+meanEffect <- mean(bsCombined$estimate[bsCombined$term == "strategic"])
+
+ciUpper <- quantile(bsCombined$estimate[bsCombined$term == "strategic"], .975)
+
+ciLower <- quantile(bsCombined$estimate[bsCombined$term == "strategic"], .025)
+
+hist(bsCombined$estimate[bsCombined$term == "strategic"], col = "slategray1")
+
+abline(v = summary(slim)$coefficients["strategic","t value"], col = "goldenrod4", lwd = 2)
+
+abline(v = ciUpper, col = "sienna3", lwd = 2)
+
+abline(v = ciLower, col = "sienna3", lwd = 2)
+
+abline(v = meanEffect, col = "sienna3", lwd = 2)
+```
+```{r}
+meanEffect <- mean(bsCombined$statistic[bsCombined$term == "declares"])
+
+ciUpper <- quantile(bsCombined$statistic[bsCombined$term == "declares"], .975)
+
+ciLower <- quantile(bsCombined$statistic[bsCombined$term == "declares"], .025)
+
+hist(bsCombined$statistic[bsCombined$term == "declares"], col = "slategray1")
+
+abline(v = summary(slim)$coefficients["declares","t value"], col = "goldenrod4", lwd = 2)
+
+abline(v = ciUpper, col = "sienna3", lwd = 2)
+
+abline(v = ciLower, col = "sienna3", lwd = 2)
+
+abline(v = meanEffect, col = "sienna3", lwd = 2)
+```
+```{r}
+meanEffect <- mean(bsCombined$estimate[bsCombined$term == "declares"])
+
+ciUpper <- quantile(bsCombined$estimate[bsCombined$term == "declares"], .975)
+
+ciLower <- quantile(bsCombined$estimate[bsCombined$term == "declares"], .025)
+
+hist(bsCombined$estimate[bsCombined$term == "declares"], col = "slategray1")
+
+abline(v = summary(slim)$coefficients["declares","t value"], col = "goldenrod4", lwd = 2)
+
+abline(v = ciUpper, col = "sienna3", lwd = 2)
+
+abline(v = ciLower, col = "sienna3", lwd = 2)
+
+abline(v = meanEffect, col = "sienna3", lwd = 2)
+```
+
+
+**Discussion on Bootstrapping Resampling:** From the above graphs, we can see that 95% of the confidence interval contains the coefficient for the strategic variable from around 0.74 to 0.85. In terms of the t-value, the 95% interval ranges from around 43 to 50. Both indicate that we can be pretty confident in strategic being a significant predictor for effect. Looking at declares, however, we can see that while there is a negative effect, the range of t-value becomes much more closer to zero ([-30,-23]) compared to that of strategic ([43,50]). Aside from the t-evalue, the effect size of declares is also significantly smaller than that of strategic. This would raise some questions about the significance of declares in predicting effect. We should also look at degrees of freedom to better estimate the meaning of those t-values. We need aslo be aware of the potential bias on standard deviation when we're doing boostrapping since the boostrapped dataset can underestimate the level of variance in our original dataset.
+
+### Gold
+
+Consider any potential problems of your original regression model(s). Were there any observations exhibiting leverage? How sure are you about the standard errors? Identify one specific issue and revise your model strategy to help allieviate that issue.
+```{r}
+
+plot(H02$fitted.values, H02$residuals)
+lmtest::bptest(H02)
+```
+From the above plot and BP test, we can see that we have heteroscedasticity. Thus, we should be skeptical about the standard errors. Computation of heteroscedasticity-robust Standard Errors using sandwich. 
+
+```{r}
+
+
+vcovHC(H02)
+
+lmtest::coeftest(H02, vcov = vcovHC)
+
+```

@@ -1,0 +1,105 @@
+---
+title: "Lab 2"
+author: "Dijia Tang"
+date: "11/13/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(tidyverse)
+```
+
+## The Data
+
+Continue using the annual exective compensation file:
+
+```{r}
+link <- read_csv("http://www3.nd.edu/~sberry5/data/anncomp.csv")
+```
+
+As noted in the lecture notes, this data needs some cleaning. You will notice that people are listed multiple times within this data, since it is yearly data -- we are just going to deal with that as it is right now. While there are better ways to handle this, it is a lecture for another time. Another issue is that we might not have data from the same year for everyone. Again, multiple ways of dealing with it -- we could convert all of the nominal dollars to real dollars (using the Consumer Price Index). This would be the best way to deal with that issue.
+
+```{r}
+library(rvest)
+
+cpiTable <- read_html("https://www.usinflationcalculator.com/inflation/consumer-price-index-and-annual-percent-changes-from-1913-to-2008/") %>% 
+  html_table(header = TRUE) %>% 
+  `[[`(1)
+names(cpiTable) <- as.character(cpiTable[1,])
+cpiTable = cpiTable[-1,]
+```
+
+After a little row/name clean-up, we can join the cpiTable into our compensation data and create an inflation-adjusted total salary variable.
+
+The formula to convert nominal dollars to real dollars is $\frac{\text{nominal}}{\text{price index} / 100}$
+
+***The compensation would make more sense if they are in hundreds.***
+```{r}
+compensation <- merge(cpiTable,link,by.x='Year',by.y='YEAR')
+compen_selected <- compensation %>% 
+  select(Year,Avg,SALARY,TOTAL_CURR,AGE,GENDER) %>% 
+  mutate(Year=as.integer(Year), Avg=as.numeric(Avg),SALARY = as.numeric(SALARY)*100,TOTAL_CURR=as.numeric(TOTAL_CURR)*100,AGE = as.integer(AGE),GENDER = as.factor(GENDER))
+compen_selected$real_compensation = compen_selected$TOTAL_CURR/(compen_selected$Avg/100)
+```
+
+## Standard Analyses
+
+In the class notes, we looked at the *SALARY* variable; now let's shift our focus to the *TOTAL_CURR* variable. This variable includes the total for all forms of compensation (salary, stocks, etc.). Let's also add another predictor into the model: *GENDER*. 
+
+### Model 1
+
+First construct a standard model, with *AGE* and *GENDER* as individual predictors. Briefly describe your results.
+```{r}
+standard = lm(real_compensation~AGE+GENDER, data = compen_selected)
+
+summary(standard)
+```
+*Discussion on standard model:* AGE and GENDER are both significant predictors to predict the real value of compensation.
+
+
+### Model 2
+
+Create a model with an interaction term for *AGE* and *GENDER*. Discuss and visualize the effects.
+
+```{r}
+inter = lm(real_compensation~AGE*GENDER, data = compen_selected)
+
+summary(inter)
+
+library(effects)
+
+modEffects = effect("AGE*GENDER", inter)
+
+plot(modEffects)
+```
+*Discussion on interaction model:* We can see from the summary statistics of the interaction model that the interaction between AGE and GENDER is very influential on predicting the value of the compensation. Hence, we can say that these two variables are working together to predict the real compensation value rather than functioning on a standalone basis.
+
+## Robust Analyses
+
+You will likely find some problems with your model (e.g., outliers and/or standard error issues). 
+
+```{r}
+plot(standard$fitted.values,standard$residuals)
+library(lmtest)
+lmtest::bptest(standard)
+```
+Both the graph and the bptest results tell us there is heteroscedasticity within our data. Use sandwich to get more reasonable estimates
+```{r}
+library(sandwich)
+coeftest(standard, vcov = vcovHC)
+```
+
+We may want to construct a robust linear model that adjusts the weight of the outliers.
+```{r}
+library('MASS')
+robTest = rlm(real_compensation ~ AGE*GENDER, data = compen_selected, psi = psi.bisquare)
+summary(robTest)
+```
+
+```{r}
+relevel()
+```
+
