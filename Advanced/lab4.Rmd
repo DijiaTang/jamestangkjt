@@ -1,0 +1,71 @@
+---
+title: "lab4"
+author: "Dijia Tang"
+date: "12/3/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load packages
+
+```{r}
+library(tidyverse)
+library(lme4)
+library(merTools)
+```
+
+Load data and linear model
+
+```{r}
+teamdata <- miceadds::load.Rdata2('teamPerc.RData')
+team <- teamdata
+glimpse(team)
+linModteam <- lm(effect~leader_age+takesCharge+declares+pushes,data=team)
+summary(linModteam)
+```
+
+Randome effect
+
+```{r}
+raneffect <- lmer(effect ~ 1 +  (1|leaderID), data = team)
+summary(raneffect)
+.2923/(.2923+1.3298)
+```
+We can see that the ICC is 0.18. This means that leaderID's random effect would explain 18% of the variace in the dependent variable.
+```{r}
+plotREsim(REsim(raneffect), labs = TRUE)
+```
+Plotting the random effect, we can see that the effect cab be pretty significant for some leaders.
+
+Add the random effect back to the linear model. 
+
+```{r}
+ranlinMod <- lmerTest::lmer(effect ~ leader_age+takesCharge+declares+pushes + (1|leaderID), data = team)
+summary(ranlinMod)
+```
+
+Add predictions
+
+```{r}
+mixedPred <- predict(ranlinMod)
+
+slimPred <- predict(linModteam)
+
+allPred <- cbind(actual = team$effect, 
+                 mixed = mixedPred, 
+                 slim = slimPred)
+```
+
+Draw the plot for the linear and the mixed models
+
+```{r}
+par(mfrow=c(1,2))
+plot(allPred[, "actual"], allPred[, "slim"])
+plot(allPred[, "actual"], allPred[, "mixed"])
+```
+
+We can see that the linear model is denser. So in this case, our linear model predicts effect better than the mixed model.
+
