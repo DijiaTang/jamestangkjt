@@ -1,0 +1,43 @@
+---
+title: "Untitled"
+author: "DijiaTang"
+date: "8/30/2019"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+```{r cars}
+#question 1 - What is the probability that someone will quit?
+
+turnoverData <- read.csv("turnoverData.csv")
+
+table1 = table(turnoverData$department,turnoverData$separatedNY)
+
+table2 = addmargins(table1)
+
+quit_prob = table2[4,2] / table2[4,3]
+
+quit_prob
+
+#question 2 - What is the joint probability of quitting and working in IT?
+
+ITQuitter_prob = table2[3,2] / table2[4,3]
+
+ITQuitter_prob
+
+#question 3 - What is the conditional probability of quitting and working in IT?
+
+cond_ITQuitter = ITQuitter_prob / (table2[3,3]/table2[4,3])
+
+cond_ITQuitter
+```
+
+
