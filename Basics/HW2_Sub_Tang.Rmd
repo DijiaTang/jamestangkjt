@@ -1,0 +1,77 @@
+---
+title: "HW 2 submission_Tang"
+author: "Dijia Tang"
+date: "9/21/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r cars}
+library(rsample)
+library(dplyr)
+library(ggplot2)
+head(attrition)
+glimpse(attrition)
+str(attrition)
+summary(attrition)
+
+# Q2 - hypothesis
+# For those whose performance rating is 'Outstanding', the Monthly Rate and the Daily Rate are positively correlated (more Daily Rate will lead to more Monthly Rate).
+
+# Q3 - test the hypothesis
+mydata <- attrition[attrition$PerformanceRating == 'Outstanding',]
+linear = lm(mydata$MonthlyRate~mydata$DailyRate,mydata)
+summary(linear)
+ggplot(mydata)+
+  geom_point(mapping = aes(DailyRate,MonthlyRate)) 
+anova <- aov(mydata$MonthlyRate~mydata$DailyRate, data = mydata, projections = TRUE)
+summary(anova)
+
+# Q4 - Discussion on the result
+# Discussion: As the p-value is greater than 0.05, there is no significant correlation between 
+# the Monthly Rate and the DailyRate for those who are rated as 'Oustanding'.
+ # Another way is to look at the ANOVA, the F value is 0.216, which is too small for us to say the R-squared 
+# from our linear regression model is significant.
+
+# Silver
+# Hypothesis: For those whose performance rating is 'Outstanding', the Monthly Rate is positively correlated with Daily Rate and Total Working Hours
+multireg <- glm(mydata$MonthlyRate ~ mydata$DailyRate * mydata$TotalWorkingYears * mydata$Age,family = Gamma)
+summary(multireg)
+# Discussion: the above multivariate regression analysis shows that the Monthly Rate is neither correlated with the Daily Rate
+# nor the Total Working Years. It seems that there is no significant relationship between these variables as far as the 5% confidence level is concerned.
+
+
+# Gold
+# NULL Hypothesis: The mean of Monthly Income of those whose Job Satisfaction is "High" or above is 
+# equal to that of those whose Job Satisfaction is "Low" or "Medium"
+
+head(attrition %>%
+  select(MonthlyRate,JobSatisfaction)) # Explore the two rows
+
+library(plyr)
+newjs <- revalue(attrition[,'JobSatisfaction'],c('Low'= 0,
+                                        'Medium' = 0,
+                                        'High' = 1,
+                                        'Very_High' = 1)) # Transform JobSatisfaction into a binary field
+str(newjs)
+
+Goldtest <- data.frame(goldMI=attrition$MonthlyIncome,newjs)
+
+t.test(Goldtest$goldMI ~ Goldtest$newjs,
+       alternative ='two.sided')
+
+ggplot(Goldtest)+
+  geom_boxplot(mapping = aes(x=newjs,y=goldMI,middle=mean(goldMI)))
+
+# Discussion: In this test, I transformed the levels im JobStatisfaction into a binary field because I wanted to test the difference between
+# the means of Monthly Income of those who are satisfied with their jobs and those who are not (or indifferent). Therefore, I assgined '0' when Job Satisfaction is 'Low'
+# or 'Medium' and 1 when Job Satisfaction is 'High' or 'Very High'.
+# Using the t.test, we can see that the p-value is not significant to reject the null hypothsis. Thus, the means between the two selected groups are not statistically different.
+# Visualizing the result with the boxplot (change the middle line to mean), we can also confirm that the means between the two groups are not significantly different.
+
+```
