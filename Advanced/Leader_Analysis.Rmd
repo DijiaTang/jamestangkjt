@@ -1,5 +1,5 @@
 ---
-title: "pwr_analysis_bootstrapping_heteroscedasticity_checking"
+title: "Leader_Analysis"
 author: "Dijia Tang"
 date: "11/23/2019"
 output: html_document
