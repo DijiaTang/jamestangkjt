@@ -1,5 +1,5 @@
 ---
-title: "Advanced Statistical Inference HW1"
+title: "Advanced_Statistical_Inference"
 author: 'Dijia Tang'
 output: html_document
 ---
