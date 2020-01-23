@@ -1,0 +1,88 @@
+---
+title: "HW1_Sub_DijiaTang"
+author: "DijiaTang"
+date: "9/6/2019"
+output: html_document
+---
+
+
+```{r}
+turnoverData <- read.csv('C:/Users/dijia/OneDrive/ND/ITAO 60200 Intro to Bus An/R/Rdemoday/turnoverData.csv')
+
+## Question 1: What is the probability of an employee being over 40 years old?
+install.packages("prob")
+
+library(prob)
+
+probabilitySpace = probspace(turnoverData)
+
+Prob_age_over40 <- Prob(probabilitySpace, (age > 40))
+
+Prob_age_over40
+
+## Question 2: What is the joint probability of being over 40 years old and quitting?
+
+Prob_over40quit <- Prob(probabilitySpace, (age>40 & separatedNY == "1"))
+
+Prob_over40quit
+  
+## Question 3: Using the Bayes Theorem, determine the conditional probability of quitting and being over 40 years old?
+  
+Prob_quitgivenover40 <- Prob(probabilitySpace,(separatedNY == "1"))
+
+Prob_over40quit/Prob_quitgivenover40
+
+## Question 4: Given the conditional probability found in Question 3, discuss any managerial implications that you see.
+
+## We can see that employees that are over 40 are the majority of the quitters.
+
+## Silver: Find the distribution that would offer a good fit to the age variable.
+
+install.packages('fitdistrplus')
+install.packages('dplyr')
+library(fitdistrplus)
+library(dplyr)
+
+summary(descdist(turnoverData$age))
+
+plot(fitdist(turnoverData$age, distr = 'norm'))
+
+## Normal distribution would offer a good fit
+
+## Gold: Use sample() to create 3 new data frames: data with 100, 250, and 500 rows. 
+## Compute the probability of quitting for each sample size and discuss how they differ.
+sample1 <- sample_n(turnoverData,100,replace = F)
+
+sample2 <- sample_n(turnoverData,250,replace = F)
+
+sample3 <- sample_n(turnoverData,500,replace = F)
+
+## Probability of quitting of sample1
+
+probabilitySpace1 = probspace(sample1)
+
+prob1 <- Prob(probabilitySpace1,(separatedNY == "1"))
+
+prob1
+
+## Probability of quitting of sample2
+
+probabilitySpace2 = probspace(sample2)
+
+prob2 <- Prob(probabilitySpace2,(separatedNY == "1"))
+
+prob2
+
+## Probability of quitting of sample3
+
+probabilitySpace3 = probspace(sample3)
+
+prob3 <- Prob(probabilitySpace3,(separatedNY == "1"))
+
+prob3
+
+
+## As the sample size increases, the probability of quitting of the sample gradually approaches that of the population.
+
+```
+
