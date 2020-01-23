@@ -1,5 +1,5 @@
 ---
-title: "comcheck2_DijiaTang"
+title: "Checking_distributions_with_fitdist"
 author: "Dijia Tang"
 date: "9/4/2019"
 output: html_document
