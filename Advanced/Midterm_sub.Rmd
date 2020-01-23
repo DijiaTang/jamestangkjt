@@ -1,0 +1,262 @@
+---
+title: "Midterm"
+author: "Dijia Tang"
+date: "12/4/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Section 1  
+
+## Instructions  
+
+Using the following data, produce a visualization with patient_days_admitted on the x-axis and dollar_spent_per_patient on the y-axis. After producing this visualization, explain what this relationship means and how this relationship might guide a decision.
+
+After looking at the bivariate relationship in the previous visualization, add department to the visualization as a grouping variable. Does this change your interpretation of the relationship or add any expanded understanding? If so, how? Does this visualization offer any additional explanatory power over the more simple visualization? Explain.
+
+**Load packages**
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+sec1Link <- read_csv("https://www.nd.edu/~sberry5/data/visualizationData.csv")
+sec1data <- sec1Link
+sec1data %>% 
+  ggplot(aes(x=patient_days_admitted,y=dollar_spent_per_patient))+
+  geom_point()+
+  geom_smooth(method = 'lm',se=F)
+```
+
+This visulization shows a positiive effect patient_days_admiited has on dollar_spent_per_patient. However, we can also see that despite the relationship, there is a fair amount of variance in our data. In terms of decision-making, this means that if a patient wants to save money on his/her medical bills, he/she needs to be released from the hospital as soon as he/she can. However, for the hospital, if the goal is to make more money, the hospital needs to find legal ways to make patients stay longer. 
+
+```{r}
+ggplot(sec1data, aes(patient_days_admitted, dollar_spent_per_patient, color = as.factor(department))) + 
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+We can see that if we group our data by department, we get relatively similar positive relationships between patient_days_admitted and dollar_spent_per_patient within each department. However, the intercepts between the three departments different. Cancer has the largets intercept. In other words, in a hypothetical situation where the patient is admitted for 0 day in all three departments, he/she will spend the most in the cancer department. This indicates that the cancer department is likely to be the most profitable amongst all, followed by cardiac and general. This conclusion is likely to be related to the difficulty of treatment within each department. 
+
+Looking at the slopes, we can see cardiac has a slightly steeper slope than the other two departments. This means that the revenue of the cardiac department increases faster with the length of patients' stay than the other two deparments.
+
+All in all, adding department as a grouping variable increases explanatory power over the more simple visualization.
+
+
+# Section 2  
+
+## Instructions   
+
+Using the following data, formulate a hypothesis for training.sessions.attended.year's effect on customer.satisfaction.scores.year. Please clearly state the relationship that you would expect to find. Using an appropriate technique from the general linear model, test your hypothesis and report your findings -- interpretation of your model's coefficients is critical. Describe your rationale for any data processing (e.g., centering) that you might undertake.
+
+After reporting and interpreting your findings, conduct a post hoc power analysis to determine if you had a sufficient sample size to detect an effect. Discuss the results from your power analysis.
+
+```{r}
+sec2Link <- read_csv("https://www.nd.edu/~sberry5/data/glmData.csv")
+sec2data = sec2Link
+head(sec2data)
+test = sec2data %>% 
+  filter(training.sessions.attended.year==0) 
+head(test)
+range(test$customer.satisfaction.scores.year)
+```
+
+We can see that there are 46 rows that contain 0 in training.sessions.attended.year and have a large gap in customer.satisfaction.scores.year. If we don't center the data, then there would be a great deal of variance on our intercept, which would probably overestimate the intercept's standard error. Therefore, we should center it.
+
+**Data Centering**
+```{r}
+centereddata <- sec2data %>% 
+  mutate(trainingCenter = training.sessions.attended.year - mean(training.sessions.attended.year, na.rm = TRUE))
+```
+
+**Hypothesis**
+***H0: ***Training.sessions.attended.year does not have a significant effect in predicting customer.satisfaction.scores.year.
+***Ha: ***Training.sessions.attended.year has a significant effect in predicting customer.satisfaction.scores.year.
+
+```{r}
+centeredMod <- lm(customer.satisfaction.scores.year~trainingCenter,data = centereddata)
+summary(centeredMod)
+lmtest::bptest(centeredMod)
+plot(centeredMod$fitted.values, centeredMod$residuals)
+ggplot(centereddata,aes(trainingCenter,customer.satisfaction.scores.year))+
+  geom_point()+
+  geom_smooth(method='lm',se=F)
+```
+
+Looking at the p-value, we can reject the null hypothesis. The R-squared and F-statistic tell us our model fits pretty well. The intercept means that when the training.sessions.attended.year is at its mean, the predicted customer satisfaction score will be 76. The coefficient of training.sessions.attended.year tells us for 1 training session increase in a year, the customer satisfaction score will increase by 2.5.
+
+As we run a BP test, we can see that there is a little heteroscedasticity in our dataset. While that's something to keep in mind, we should probably ignore it at the moment because it is not that obvious as shown in our visualization.
+
+**Power Analysis**
+
+```{r}
+f2 = summary(centeredMod)$adj.r.squared/(1-summary(centeredMod)$adj.r.squared)
+library(pwr)
+pwr.f2.test(u = 1, v = NULL, f2=f2, power = .8)
+```
+
+The value of v is 10.3. We can get the minimal sample size for us should be 11.3, which is much smaller than the size of our sample. Therefore, we have a sufficient sample size to detect an effect.
+
+# Section 3  
+
+## Instructions   
+
+Consider the following A/B testing data. This data tracks a user's time on page (timeOnPage) and the UI design (design). In A/B testing, we are concerned with the difference between the two groups on the outcome. Select the appropriate technique from the general linear model and determine if any significant differences exist between the two competing page designs. Describe your rationale for any data processing that you might undertake.
+
+Discuss your results and indicate any actionable decision that comes from your analysis. Additionally, determine if your analyses were sufficiently powered.
+
+```{r}
+sec3Link <- read_csv("https://www.nd.edu/~sberry5/data/abData.csv")
+sec3data = sec3Link %>% 
+  mutate(PageConfiguration = as.factor(PageConfiguration))
+head(sec3data)
+sec3data %>% 
+  filter(MinutesOnPage<=0)
+range(sec3data$MinutesOnPage)
+hist(sec3data$MinutesOnPage)
+prop.table(table(sec3data$PageConfiguration))
+```
+
+From the above analyses, we can see that the data is pretty balanced and there is no weird value within MinutesOnPage. We need to change the PageConfiguration column to the factor data type. An interesting pattern shown by the histogram is that Minutes on page is pretty concentrated in 2 to 4 minutes or 5 to 7 minutes. This probably has to do with the different designs. We can proceed with the ANOVA analysis.
+
+```{r}
+summary(aov(MinutesOnPage ~ PageConfiguration, data = sec3data))
+TukeyHSD(aov(MinutesOnPage ~ PageConfiguration, data = sec3data))
+ggplot(sec3data,aes(PageConfiguration,MinutesOnPage))+
+  geom_boxplot()
+```
+
+From the above ANOVA and TukeyHSD analyses, we can see that there is a significant difference between design A's minutes on page and design B's. 
+
+**Actionable Decision: **If the goal is to get viewers spend more time on the webpage, design A would have a better result than design B.
+
+**Power Analysis**
+
+```{r}
+pwrtest <- sec3data %>% 
+  group_by(PageConfiguration) %>% 
+  summarise(meanpg = mean(MinutesOnPage),
+            stddev = sd(MinutesOnPage),
+            cnt = n())
+d = (pwrtest[1,2]-pwrtest[2,2]) / sd(sec3data$MinutesOnPage)
+tPower = pwr.t.test(n = NULL, d = d[1,1], power = 0.8, 
+                    type= "two.sample", alternative = "greater")
+plot(tPower)
+
+```
+
+The recommended sample size of each group, according the above power analysis, is 5. Our sample size is sufficiently larger than this number. So we can be confident in the power.
+
+
+# Section 4  
+
+## Instructions   
+
+Using the following data, determine if there are any differences in the daily net profit of three different store locations. Select the appropriate test from the general linear model and determine if any significant differences exist. Describe your rationale for any data processing that you might undertake. 
+
+Discuss your results.
+
+```{r}
+sec4Link <- read_csv("https://www.nd.edu/~sberry5/data/performanceData.csv")
+sec4data = sec4Link %>% 
+  mutate(facility_location=as.factor(facility_location))
+head(sec4data)
+sec4data %>% 
+  filter(daily_net_profit_thousand<=0)
+range(sec4data$daily_net_profit_thousand)
+hist(sec4data$daily_net_profit_thousand)
+prop.table(table(sec4data$facility_location))
+```
+
+From the above exploratory analysis, we can see that the data is pretty balanced. We need to change the data type for facility_location to factor before conducting further analysis.
+
+```{r}
+summary(aov(daily_net_profit_thousand ~ facility_location, data = sec4data))
+TukeyHSD(aov(daily_net_profit_thousand ~ facility_location, data = sec4data))
+```
+
+The ANOVA test tells is significant difference in daily_net_profit_thousand exists amongst the three facility locations. Using TukeyHSD we can see that the difference is significant between 403 Barr and 10 Maple, and 710 Oakland and 403 Bar, while there is no significance between 710 Oakland and 10 Maple.
+
+# Section 5  
+
+## Instructions   
+
+Using the following data, determine what variables influence a franchise's ultimate outcome -- failure or success. Using any variables available to you, select the appropriate method and test your model. Discuss your results and describe your rationale for any data processing that you might undertake.
+
+```{r}
+sec5Link <- read_csv("https://www.nd.edu/~sberry5/data/outcomeData.csv")
+sec5data = sec5Link %>% 
+  mutate(storeID = as.character(storeID),
+         outcomeClosedOpen = as.factor(outcomeClosedOpen),
+         quartersWithHealthViolations = as.integer(quartersWithHealthViolations))
+head(sec5data)
+glimpse(sec5data)
+prop.table(table(sec5data$outcomeClosedOpen))
+```
+
+Change storeID, outcomeClosedOpen, and quartersWithHealthViolations into the right data types.
+
+```{r}
+logTest01 = glm(outcomeClosedOpen ~ employeeCount, data = sec5data, 
+              family = binomial)
+summary(logTest01)
+logTest02 = glm(outcomeClosedOpen ~ dailyNetProfitThousands
+, data = sec5data, 
+              family = binomial)
+summary(logTest02)
+logTest03 = glm(outcomeClosedOpen ~ quartersWithHealthViolations, data = sec5data, 
+              family = binomial)
+summary(logTest03)
+logTest04 = glm(outcomeClosedOpen ~ peoplePerSqMile, data = sec5data, 
+              family = binomial)
+summary(logTest04)
+```
+
+First we do a logistic regression between the outcome and each predictor. From the above summaries, we can see that employeeCount and peoplePerSqMile look like the most significant predictors for the outcome. While quartersWithHealthViolations is still statistically significant compared to a 0.05 alpha, the p-value is quite large compared to the selected two predictors. Also, the AIC of quartersWithHealthViolations is higher too, so we should should be skeptical about whether quartersWithHealthViolations would be a good predictor. To further examine the effect, we look at the intercepts of these predictors.
+
+```{r}
+exp(coef(logTest01)["(Intercept)"]) / (1 + exp(coef(logTest01)["(Intercept)"]))
+exp(coef(logTest04)["(Intercept)"]) / (1 + exp(coef(logTest04)["(Intercept)"]))
+exp(coef(logTest03)["(Intercept)"]) / (1 + exp(coef(logTest03)["(Intercept)"]))
+```
+
+The above tells us the probability of the dependent variable when the values of the predictors are zero. We can see that employeeCount and peoplePerSqMile result in an almost zero probability just as what we would expect. However, quartersWithHealthViolations, when zero, actually corresponds to a 0.51 probability for outcomeClosedOpen. This further confirms that quartersWithHealthViolations should not be considered as a good predictor.
+
+**Coefficients Interpretation**
+
+```{r}
+exp(coef(logTest01)["employeeCount"])
+exp(coef(logTest04)["peoplePerSqMile"])
+```
+
+One unit increase in employeeCount will increase the odds of openning a store by 1.77.
+One unit increase in peoplePerSqMile will increase the odds of openning a store by 1.10.
+
+**Visualizations**
+
+```{r}
+ggplot(sec5data) +
+  geom_count(aes(peoplePerSqMile,outcomeClosedOpen )) + 
+  theme_minimal()
+ggplot(sec5data) +
+  geom_count(aes(employeeCount,outcomeClosedOpen )) + 
+  theme_minimal()
+sec5data = sec5data %>% 
+  mutate(predictedProbs_EMPCNT = predict(logTest01, type = "response"),
+         predictedProbs_PPLSQM = predict(logTest04, type = "response"),)
+sec5data %>% 
+  ggplot(., aes(peoplePerSqMile, predictedProbs_PPLSQM)) +
+  geom_line(size = 1.5) +
+  theme_minimal()
+sec5data %>% 
+  ggplot(., aes(employeeCount, predictedProbs_EMPCNT)) +
+  geom_line(size = 1.5) +
+  theme_minimal()
+```
+
+We can see that a store will have a very high chance to open successfully if it has more than 20 employees or the area in which it is located has more than 300 people per square mile.
+
