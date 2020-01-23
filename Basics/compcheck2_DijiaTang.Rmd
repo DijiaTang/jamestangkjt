@@ -1,0 +1,63 @@
+---
+title: "comcheck2_DijiaTang"
+author: "Dijia Tang"
+date: "9/4/2019"
+output: html_document
+---
+
+```{r lib, echo=TRUE, warning=FALSE,message=FALSE,error=FALSE}
+mydata <- read.csv("C:/Users/dijia/OneDrive/ND/ITAO 60200 Intro to Bus An/Assignments/assignment1/turnoverData.csv")
+
+library(fitdistrplus)
+library(dplyr)
+```
+**fuck this**
+```{r}
+## normal distribution check
+
+summary(descdist(mydata[,2]))
+
+plot(fitdist(mydata[,2], distr = "weibull"))
+
+## Weibull distribution
+
+summary(descdist(mydata[,1]))
+
+plot(fitdist(mydata[,1], distr = "norm"))
+
+## Normal distribution
+
+## calculating means for applicable variables
+mean(mydata[,1])
+mean(mydata[,2])
+mean(mydata[,4])
+mean(mydata[,6])
+
+## calculating standard deviations for applicable variables
+sd(mydata[,1])
+sd(mydata[,2])
+sd(mydata[,4])
+sd(mydata[,6])
+
+
+
+## group by depts
+mydata %>%
+  group_by(department) %>%
+  summarize(
+    dept_startingSalary_Mean = mean(startingSalary),
+    dept_startingSalary_sd = sd(startingSalary),
+    dept_daysToSeparate_Mean = mean(daysToSeparate,na.rm=T),
+    dept_daysToSeparate_sd = sd(daysToSeparate,na.rm=T)) %>%
+  as.data.frame()
+
+## group by separatedNY
+mydata %>%
+  group_by(separatedNY) %>%
+  summarize(
+    NY_startingSalary_Mean = mean(startingSalary),
+    NY_startingSalary_sd = sd(startingSalary),
+    NY_numberPriorJobs_Mean = mean(numberPriorJobs,na.rm=T),
+    NY_numberPriorJobs_sd = sd(numberPriorJobs,na.rm=T)) %>%
+  as.data.frame()
+```
