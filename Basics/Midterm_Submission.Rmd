@@ -1,0 +1,101 @@
+---
+title: "Midterm_Submission"
+author: "Dijia Tang"
+date: "9/30/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r cars}
+knitr::opts_chunk$set(echo = TRUE)
+my_locale <- Sys.getlocale("LC_ALL")
+Sys.setlocale("LC_ALL", my_locale)
+# Section 1
+candy <- read.csv('C:/Users/dijia/OneDrive/ND/ITAO 60200 Intro to Bus An/MT/candy.csv')
+
+head(candy)
+
+# Hypothesis
+# Higher sugarpercent and pricepercent will lead to a higher winpercent.
+
+summary(lm(candy$winpercent ~ candy$pricepercent + candy$sugarpercent, candy))
+
+# Discussion
+# Overall, we can see that the F-statistic indicates that our model makes a good fit because the p-value is smaller than 5%, the confidence level.
+# However, the accuracy of this model is limited because the R-squared is only 0.1342. 
+# This means that only 13.42% of the variance in winpercent is explained by our model.
+# Looking at only the coefficients, we can see that both pricepercent and sugarpercent have a positive impact on winpercent.
+# That being said, if we take the p-value of each variable into account, under the 5% alpha, we can find that only pricepercent is statistically significant to have that positive impact.
+# This means that as pricepercent goes up by 1 unit, winpercent will go up by 15.586 units.
+# We should notice that there are only 85 observations in our dataset. Thus, the sample size may be too small to be conclusive about the relationships.
+# To enhance our confidence in the relationship, we should draw more samples and perform the same regression.
+# Or we can try to add more variables to our model.
+
+# Section 2
+songs <- read.csv('C:/Users/dijia/OneDrive/ND/ITAO 60200 Intro to Bus An/MT/songs.csv')
+
+head(songs)
+
+# Hypothesis
+# The duration of a song is negatively correlated with bpm, the number of fights, and the number of tropes.
+
+summary(lm(songs$sec_duration ~ songs$bpm + songs$number_fights + songs$trope_count, songs))
+
+# Discussion
+# The overall F-statistic is too low for us to say our model does a good job predicting the duration of a song.
+# The R-squared basically says the same thing as the F-statistic does. 
+# Looking at the coefficients of each variable, we see that although it seems that bpm and the number of fights will have a negative impact on the duration, their p-values show that relationship is not significant.
+# As for the number of tropes, the p-value is too large to say it has a meaningful correlation with the duration.
+# To improve our model, we may need to consider whether it would be possible to fit with some other models such as non-linear models.
+# We could also try to choose other variables since our general fit is quite poor.
+# Another limitation of our dataset is that the number of observations are too few to draw statistical insights. We may want to get more observations before performing the regression.
+
+# Section 3
+alcohol <- read.csv('C:/Users/dijia/OneDrive/ND/ITAO 60200 Intro to Bus An/MT/alcohol.csv')
+
+head(alcohol)
+
+levels(alcohol$Category)
+
+# Hypothesis 1
+# H0: The mean of ABV in beer is less than or equal to that in cider.
+# H1: The mean of ABV in beer is greater than that in cider.
+
+t.test(alcohol$ABV ~ alcohol$Category,
+       alternative ='greater')
+
+# Discussion 1
+# Since people are drinking beer to maximize their vibe but not cider, I performed a hypothsis testing to compare the means of ABV in bear and cider.
+# According to the statement, the statement we want to find evidence to reject is H0 above.
+# Performing the t.test based on ABV and Category, I found that the average ABV in beer is indeed greater than that in cider at the 5% confidence level.
+
+# Hypothesis 2
+# Higher units of alcohol will answer for higher ABV in beer.
+
+library(tidyverse)
+beerABV <- alcohol %>%
+  select(Category, Units.of.Alcohol, ABV) %>%
+  filter(Category == 'Beer')
+
+head(beerABV)
+
+summary(lm(ABV ~ Units.of.Alcohol, beerABV))
+
+library(ggplot2)
+
+ggplot(beerABV,aes(x = Units.of.Alcohol, y = ABV)) + 
+  geom_point(color = 'blue') +
+  geom_smooth(method = 'lm', color = 'red', se = F)
+
+# Discussion 2
+# The F-statistic of the above regression model indicates the overall fit is quite good.
+# However, the R-squared shows that the accuracy of prediction is not great.
+# Looking at the coefficient and p-value of units of alcohol, we can say that it has a positive impact on ABV, which is statistically significant according to the p-value.
+# To improve the R-squared of our model, we may want to get rid of some outliers or increase the number of predictors.
+```
+
