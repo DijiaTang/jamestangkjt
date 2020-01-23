@@ -1,0 +1,237 @@
+---
+title: "Final Presentation"
+date: "`r Sys.Date()`"
+author: "Dijia Tang"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    highlight: zenburn
+    css: documentCSS.css
+---
+
+
+```{r knitr_init, echo=FALSE, cache=FALSE}
+library(knitr)
+library(rmdformats)
+```
+
+```{r}
+library(tidyverse)
+library(lme4)
+library(merTools)
+library(pwr)
+library(effects)
+library(sandwich)
+library(MuMIn)
+```
+
+# Load the NBA data.
+
+```{r}
+NBA <- read.csv('C:/Users/dijia/OneDrive/ND/ITAO 70200 Adv Stats/FP/all_seasons.csv')
+glimpse(NBA)
+```
+
+# Part 1: Hypothesis testing using ANOVA
+
+**H0: **Players in different age groups play the same number of games.
+
+**Ha: **Players in different age groups play different number of games.
+
+## 1.1 Create an age_group variable where 1 means players under 20, 2 means players in their twenties, 3 in thirties, and 4 in forties.
+
+```{r}
+range(NBA$age)
+NBA <- NBA %>% 
+  mutate(age_group = as.factor(findInterval(age, c(10, 20, 30, 40, 50))))
+```
+
+## 1.2 Do an ANOVA analysis between gp (games per season) and age_group
+
+```{r}
+summary(aov(gp ~ age_group, data = NBA))
+TukeyHSD(aov(gp ~ age_group, data = NBA))
+```
+
+**Discussion **
+
+We can see that there is difference between games per season for each age group. While that difference is not significant for players younger than 40, it is clearly significant between players older than 40 and players in twenties or thirties. This is probably because players in their twenties or thirties are in the "growing" or "mature" stage of their career and need to have more game experience or contribute to the game more actively. For players in their forties, they probably play more of a supporting or mentor role than directly combat in the game. 
+
+## 1.3 Posterior power analysis one-way ANOVA
+
+```{r}
+pwrtest <- NBA %>% 
+  group_by(age_group) %>% 
+  summarise(cnt = n())
+power.anova.test(groups = 4, 
+between.var = 2533.5, within.var = 618.5, 
+power=NULL,sig.level=0.05,n=pwrtest$cnt)
+```
+
+Our power analysis tells us our ANOVA analysis is sufficient powered.
+
+# Part 2: Mixed model explaining points
+
+## 2.1 Data centering
+
+```{r}
+nrow(filter(NBA, pts == 0))
+```
+
+We should center our data because there are 101 zeros in our data, which would not be really useful for our prediction. 
+
+```{r}
+NBA_centered <- NBA %>% 
+  mutate(pts = pts - mean(pts, na.rm = TRUE))
+```
+
+## 2.2 Data processing
+
+Our domain knowledge tells us NBA started limiting the rounds of draft to two after 1989. Because our data contains player who were still in the league in 1996, we have round number 3 to 8. Our goal is to explain points for players who are still in the league.
+
+### 2.2.1 Get players who are still in the league in season 2016-2017.
+
+```{r}
+curr_players <- NBA_centered %>% 
+  filter(season == '2016-17') 
+curr_players <- distinct(curr_players['player_name'])
+```
+
+### 2.2.2 Find the career data for current players.
+
+```{r}
+all_curr_players <- NBA_centered %>% 
+  filter(player_name %in% curr_players$player_name)
+head(all_curr_players)
+```
+
+## 2.3 It would be interesting to see if those who get drafted score higher than those who are undrafted. 
+
+**H0: **The points by those who are undrafted are greater than or equal to those who are drafted. 
+
+**Ha: **The points by those who are undrafted are less than those who are drafted.
+
+```{r}
+all_curr_players <- all_curr_players %>% 
+  mutate(drafted = ifelse(draft_round == 'Undrafted',0,1))
+t.test(pts ~ drafted, data = all_curr_players, alternative = 'less')
+```
+
+ We can reject our null hypothesis.
+
+## 2.4 **Hierarchical model**
+
+Before doing our regression analyis, with a little bit of domain knowledge, we know that there is a hierarchical relationship between draft_round and draft_number. We do a mixed model for these two predictors. For the fixed effects, we are using ts_pct (shooting efficiency), age, and usg_pct (percentage of team plays used by the player), as these features are probably predictive.
+
+```{r}
+hierMod <- lmerTest::lmer(pts ~ ts_pct + age + usg_pct + (1|draft_round/draft_number), data = all_curr_players)
+summary(hierMod)
+```
+
+### 2.4.1 Look at the effect ranges.
+
+```{r}
+plotREsim(REsim(hierMod), labs = TRUE)
+```
+
+### 2.4.2 Take a closer look at our random effect.
+
+```{r}
+reffect <- ranef(hierMod) %>% 
+  as.data.frame() %>% 
+  dplyr::select(grp,condval)
+reffect[order(-reffect$condval),]
+```
+
+### 2.4.3 Players with low picks but high performance
+
+```{r}
+all_curr_players %>% 
+  filter(draft_round==2 & (draft_number==60 |
+                           draft_number==48 |
+                           draft_number==30)) %>% 
+  dplyr::select(player_name,draft_round, draft_number, pts) %>% 
+  arrange(desc(pts)) %>% 
+  head(10)
+```
+
+**Discussion**
+
+We can see that within 1 draft round the points bounce around about 1.5 points from one draft number to the other. If we take a closer look at the random effect, we can see that the majority of top performers are the top picks in the first round. This would meet our expectation as those players are considered extremely talented. However, it is also worth noting that we have a few players who are the last few picks the second round also emerge as really good scorers. Particularly, the player who is the 60th draft in the second round. We know he is Issiah Thoamas, who was the score leader of Boston Celtics in season 2016-17. Marc Gasol, the 48th pick in the second round, is also a great player who helped the Raptors win the championship last season.
+
+It is also interesting to know that players with low scoring capabilities are the ones who are generally picked at the end of a draft round. They actually have lower scoring capabilities than the undrafted players! 
+
+The graph on the right is pretty intuitive. If you are in the first round, your intercept is the highest, followed by the second round and undrafted. It is worth noting that the difference is really small between the second round and undrafted. This means that many undrafted players are actually pretty competitive. 
+
+Our fixed effect tells us that ts_pct, age, and usg_pct are all significant. The most important factor is probably usg_pct, where 1% increase can result in a 0.78 increase in points (note that usg_pct is a percentage). This is because when a player uses a lot of team plays, he may get more chances to shoot, and thus, score.
+
+## 2.4.4 Comparison with a standard linear model
+
+```{r}
+lmTest <- lm(pts ~ ts_pct + age + usg_pct + draft_number + draft_round, all_curr_players)
+mixedPred <- predict(hierMod)
+slimPred <- predict(lmTest)
+allPred <- cbind(actual = all_curr_players$pts, 
+      mixed = mixedPred, 
+      slim = slimPred)
+par(mfrow=c(1,2))
+plot(allPred[, "actual"], allPred[, "slim"])
+plot(allPred[, "actual"], allPred[, "mixed"])
+```
+
+The graph doesn't give us too much comparison.
+
+### 2.4.5 Let's look at the psuedo-R-squared for the hierarchical model and the R-squared for the linear model.
+
+```{r}
+r.squaredGLMM(hierMod)
+summary(lmTest)$r.squared
+```
+
+In fact, our hierarchical model's conditional R-square tells us 0.66 of the variance is explained by both the fixed and the random effect, whereas the linear model is showing a slightly better performance by explaining 0.71 of the variance.
+
+# Part 3: Interaction model explaining rebounds
+
+It is likely that player weight and height interact with each other to determine the player's rebounding ability. Let's see if that is true using the interaction model.
+
+## 3.1 Interaction model
+
+```{r}
+intMod = lm(reb ~ player_height * player_weight, data = all_curr_players)
+summary(intMod)
+modEffects = effect("player_height * player_weight", intMod)
+plot(modEffects)
+```
+
+Indeed, these two terms act together to determine a player's rebounds. The above plot tells us a player will be a good rebounder if he is tall and heavy - a typical standard for the center whose key responsibility is to get rebounds.
+
+## 3.2 Does our model have heteroscedasticity?
+
+```{r}
+summary(intMod)
+plot(intMod$fitted.values, intMod$residuals)
+lmtest::bptest(intMod)
+```
+
+The p-value of the BP test and the graph both tell us we have heteroscedasticity. So we should be skeptical about the current standard errors we have.
+
+## 3.3 Get more reasonable standard errors.
+
+```{r}
+lmtest::coeftest(intMod, vcov = vcovHC)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
