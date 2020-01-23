@@ -1,5 +1,5 @@
 ---
-title: "lab4"
+title: "Mixed_models_raneff"
 author: "Dijia Tang"
 date: "12/3/2019"
 output: html_document
