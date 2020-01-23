@@ -1,5 +1,5 @@
 ---
-title: "Midterm_Submission"
+title: "Regression_model_comparison_discussions"
 author: "Dijia Tang"
 date: "9/30/2019"
 output: html_document
