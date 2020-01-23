@@ -1,5 +1,5 @@
 ---
-title: "HW 2 submission_Tang"
+title: "Hypothesis_testing_ttests"
 author: "Dijia Tang"
 date: "9/21/2019"
 output: html_document
@@ -35,7 +35,7 @@ summary(anova)
 # Q4 - Discussion on the result
 # Discussion: As the p-value is greater than 0.05, there is no significant correlation between 
 # the Monthly Rate and the DailyRate for those who are rated as 'Oustanding'.
- # Another way is to look at the ANOVA, the F value is 0.216, which is too small for us to say the R-squared 
+# Another way is to look at the ANOVA, the F value is 0.216, which is too small for us to say the R-squared 
 # from our linear regression model is significant.
 
 # Silver
